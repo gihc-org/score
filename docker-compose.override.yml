@@ -1,0 +1,11 @@
+services:
+  score:
+    ports:
+      - "8080:8080"
+  postgres:
+    ports:
+      - "5432:5432"
+  ipfs:
+    ports:
+      - "8081:8080"
+      - "4001:4001"

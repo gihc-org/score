@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Er det noget værd?</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 32px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .create-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .rating-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    #reviews-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .empty {
+      color: var(--text-muted);
+      font-size: 14px;
+      text-align: center;
+      padding: 40px 0;
+    }
+    .spinner {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 40px 0;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <span class="brand">⭐ Er det noget værd?</span>
+    <div style="display:flex;align-items:center;gap:16px">
+      <span class="user" id="navUser"></span>
+      <button class="secondary" id="logoutBtn" style="padding:6px 14px;font-size:13px">Log ud</button>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="card">
+      <div class="section-title">Ny anmeldelse</div>
+      <div class="create-form">
+        <input type="text" id="newTitle" placeholder="Titel" maxlength="200">
+        <textarea id="newDesc" placeholder="Beskrivelse — brug gerne emojis 🎉" rows="4"></textarea>
+        <input type="url" id="newLink" placeholder="Link (valgfrit)">
+        <div>
+          <div class="rating-label">Din bedømmelse</div>
+          <div class="stars" id="ratingStars" role="radiogroup" aria-label="Bedømmelse">
+            <span data-v="1">★</span>
+            <span data-v="2">★</span>
+            <span data-v="3">★</span>
+            <span data-v="4">★</span>
+            <span data-v="5">★</span>
+          </div>
+        </div>
+        <button id="submitBtn" disabled>Indsend anmeldelse</button>
+        <div class="error" id="createError"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">Alle anmeldelser</div>
+      <div id="reviews-list"><div class="spinner">Indlæser…</div></div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="version-check.js"></script>
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) location.href = 'index.html';
+
+    let currentUserId = null;
+    let selectedRating = 0;
+
+    // Fetch current user for nav and ownership checks
+    async function loadMe() {
+      try {
+        const res = await fetch(`${API_URL}/v1/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 401) { localStorage.removeItem('token'); location.href = 'index.html'; return; }
+        const data = await res.json();
+        currentUserId = data.id;
+        document.getElementById('navUser').textContent = data.username;
+      } catch {}
+    }
+
+    // Stars interaction
+    const stars = document.querySelectorAll('#ratingStars span');
+
+    function setStars(val) {
+      selectedRating = val;
+      stars.forEach(s => s.classList.toggle('on', +s.dataset.v <= val));
+      document.getElementById('submitBtn').disabled = val === 0 || !document.getElementById('newTitle').value.trim();
+    }
+
+    stars.forEach(s => {
+      s.addEventListener('click', () => setStars(+s.dataset.v));
+      s.addEventListener('mouseover', () => stars.forEach(x => x.classList.toggle('on', +x.dataset.v <= +s.dataset.v)));
+      s.addEventListener('mouseout', () => stars.forEach(x => x.classList.toggle('on', +x.dataset.v <= selectedRating)));
+    });
+
+    document.getElementById('newTitle').addEventListener('input', () => {
+      document.getElementById('submitBtn').disabled = selectedRating === 0 || !document.getElementById('newTitle').value.trim();
+    });
+
+    // Submit review
+    document.getElementById('submitBtn').addEventListener('click', async () => {
+      const errEl = document.getElementById('createError');
+      errEl.textContent = '';
+      const title = document.getElementById('newTitle').value.trim();
+      const description = document.getElementById('newDesc').value.trim();
+      const link = document.getElementById('newLink').value.trim() || null;
+
+      if (!title) { errEl.textContent = 'Titel mangler'; return; }
+      if (!description) { errEl.textContent = 'Beskrivelse mangler'; return; }
+      if (selectedRating === 0) { errEl.textContent = 'Vælg en bedømmelse'; return; }
+
+      try {
+        const res = await fetch(`${API_URL}/v1/reviews`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ title, description, link, rating: selectedRating }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail);
+        document.getElementById('newTitle').value = '';
+        document.getElementById('newDesc').value = '';
+        document.getElementById('newLink').value = '';
+        setStars(0);
+        await loadReviews();
+      } catch (e) {
+        errEl.textContent = e.message;
+      }
+    });
+
+    // Load reviews
+    async function loadReviews() {
+      const listEl = document.getElementById('reviews-list');
+      try {
+        const res = await fetch(`${API_URL}/v1/reviews`);
+        const reviews = await res.json();
+        if (!reviews.length) {
+          listEl.innerHTML = '<div class="empty">Ingen anmeldelser endnu — vær den første!</div>';
+          return;
+        }
+        listEl.innerHTML = '';
+        reviews.forEach(r => listEl.appendChild(renderReview(r)));
+      } catch {
+        listEl.innerHTML = '<div class="empty">Kunne ikke hente anmeldelser.</div>';
+      }
+    }
+
+    function renderStars(rating) {
+      let html = '<span class="stars-display">';
+      for (let i = 1; i <= 5; i++) html += `<span class="${i <= rating ? 'on' : ''}">★</span>`;
+      html += '</span>';
+      return html;
+    }
+
+    function renderReview(r) {
+      const div = document.createElement('div');
+      div.className = 'review-card';
+      div.dataset.id = r.id;
+
+      const date = new Date(r.created_at).toLocaleDateString('da-DK', {
+        day: 'numeric', month: 'long', year: 'numeric',
+      });
+
+      const linkHtml = r.link
+        ? `<div class="review-link"><a href="${escHtml(r.link)}" target="_blank" rel="noopener noreferrer">${escHtml(r.link)}</a></div>`
+        : '';
+
+      const isOwn = r.user_id === currentUserId;
+      const deleteHtml = isOwn
+        ? `<button class="delete-btn" data-id="${r.id}">Slet</button>`
+        : '';
+
+      div.innerHTML = `
+        <div class="review-header">
+          <span class="review-title">${escHtml(r.title)}</span>
+          <span class="review-meta">${escHtml(r.username)} · ${date}</span>
+        </div>
+        ${renderStars(r.rating)}
+        <div class="review-desc">${escHtml(r.description)}</div>
+        ${linkHtml}
+        <div class="review-footer">
+          <span></span>
+          ${deleteHtml}
+        </div>
+      `;
+
+      const deleteBtn = div.querySelector('.delete-btn');
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', async () => {
+          if (!confirm('Slet denne anmeldelse?')) return;
+          try {
+            const res = await fetch(`${API_URL}/v1/reviews/${r.id}`, {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) { const d = await res.json(); throw new Error(d.detail); }
+            div.remove();
+            if (!document.querySelector('.review-card')) {
+              document.getElementById('reviews-list').innerHTML =
+                '<div class="empty">Ingen anmeldelser endnu — vær den første!</div>';
+            }
+          } catch (e) {
+            alert(e.message);
+          }
+        });
+      }
+
+      return div;
+    }
+
+    function escHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('token');
+      location.href = 'index.html';
+    });
+
+    (async () => {
+      await loadMe();
+      await loadReviews();
+    })();
+  </script>
+</body>
+</html>
