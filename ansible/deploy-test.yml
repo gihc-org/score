@@ -110,6 +110,9 @@
         - "score.api"
         - "beta.score.api"
         - "test.score.api"
+        - "er-det-noget-vaerd.apps"
+        - "beta.er-det-noget-vaerd.apps"
+        - "test.er-det-noget-vaerd.apps"
       when: >-
         simply_records.json.records
         | selectattr('type', 'equalto', 'A')
