@@ -1,0 +1,8 @@
+---
+# Komplet deploy: test → e2e (manuelt) → beta → prod i én kørsel.
+#
+# Brug:
+#   ansible-playbook ansible/deploy.yml -i ansible/inventory.yml --ask-vault-pass
+
+- import_playbook: deploy-test.yml
+- import_playbook: deploy-promote.yml

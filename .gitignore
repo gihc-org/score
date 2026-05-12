@@ -1,3 +1,4 @@
 /target
 .env
 frontend/config.js
+ansible/group_vars/all/vault.yml

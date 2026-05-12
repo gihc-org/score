@@ -1,0 +1,45 @@
+# Produktionskonfiguration — bruges af Ansible:
+# docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+services:
+  score-test:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-scoreuser}:${POSTGRES_PASSWORD}@postgres:5432/${TEST_POSTGRES_DB:-scoredb_test}
+      JWT_SECRET: ${JWT_SECRET}
+      ALLOWED_ORIGIN: ${TEST_ALLOWED_ORIGIN}
+      TURNSTILE_SECRET: ""
+      RESEND_API_KEY: ""
+      RESEND_FROM: ${RESEND_FROM:-noreply@example.com}
+      BASE_URL: ${TEST_BASE_URL}
+      FRONTEND_URL: ${TEST_FRONTEND_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - default
+      - platform_net
+
+  score-beta:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-scoreuser}:${POSTGRES_PASSWORD}@postgres:5432/${BETA_POSTGRES_DB:-scoredb_beta}
+      JWT_SECRET: ${JWT_SECRET}
+      ALLOWED_ORIGIN: ${BETA_ALLOWED_ORIGIN}
+      TURNSTILE_SECRET: ""
+      RESEND_API_KEY: ""
+      RESEND_FROM: ${RESEND_FROM:-noreply@example.com}
+      BASE_URL: ${BETA_BASE_URL}
+      FRONTEND_URL: ${BETA_FRONTEND_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - default
+      - platform_net
+
+networks:
+  platform_net:
+    name: platform_net
+    external: true
