@@ -119,6 +119,19 @@
         | selectattr('name', 'equalto', item)
         | list | length == 0
 
+    - name: Vent på DNS-propagering for nye domæner
+      ansible.builtin.command:
+        cmd: dig @8.8.8.8 {{ item }} +short
+      loop:
+        - "score.api.{{ domain }}"
+        - "{{ frontend_domain }}"
+        - "{{ beta_frontend_domain }}"
+        - "{{ test_frontend_domain }}"
+      register: dns_check
+      retries: 18
+      delay: 10
+      until: dns_check.stdout != ""
+
     - name: Genindlæs platform Caddy
       ansible.builtin.command:
         cmd: docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile
