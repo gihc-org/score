@@ -121,7 +121,7 @@
       errEl.textContent = '';
       errEl.style.color = '';
       try {
-        const res = await fetch(`${API_URL}/v1/auth/token`, {
+        const res = await fetch(`${API_URL}/auth/token`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -147,7 +147,7 @@
         ? turnstile.getResponse(turnstileWidget)
         : '';
       try {
-        const res = await fetch(`${API_URL}/v1/auth/register`, {
+        const res = await fetch(`${API_URL}/auth/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -97,7 +97,7 @@
     // Fetch current user for nav and ownership checks
     async function loadMe() {
       try {
-        const res = await fetch(`${API_URL}/v1/auth/me`, {
+        const res = await fetch(`${API_URL}/auth/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.status === 401) { localStorage.removeItem('token'); location.href = 'index.html'; return; }
@@ -139,7 +139,7 @@
       if (selectedRating === 0) { errEl.textContent = 'Vælg en bedømmelse'; return; }
 
       try {
-        const res = await fetch(`${API_URL}/v1/reviews`, {
+        const res = await fetch(`${API_URL}/reviews`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ title, description, link, rating: selectedRating }),
@@ -160,7 +160,7 @@
     async function loadReviews() {
       const listEl = document.getElementById('reviews-list');
       try {
-        const res = await fetch(`${API_URL}/v1/reviews`);
+        const res = await fetch(`${API_URL}/reviews`);
         const reviews = await res.json();
         if (!reviews.length) {
           listEl.innerHTML = '<div class="empty">Ingen anmeldelser endnu — vær den første!</div>';
@@ -217,7 +217,7 @@
         deleteBtn.addEventListener('click', async () => {
           if (!confirm('Slet denne anmeldelse?')) return;
           try {
-            const res = await fetch(`${API_URL}/v1/reviews/${r.id}`, {
+            const res = await fetch(`${API_URL}/reviews/${r.id}`, {
               method: 'DELETE',
               headers: { Authorization: `Bearer ${token}` },
             });
